@@ -117,14 +117,22 @@ function InvTweaks.GetHoveredInventory()
     return InvTweaks.GetHoveredSlot() and InvTweaks.GetHoveredSlot().ParentInventory
 end
 
----@return Barotrauma.Inventory returns inventory of the item currently being interacted with by client character or nil.
+---@return Barotrauma.Inventory returns inventory of the item/character currently being interacted with by client character or nil.
 function InvTweaks.GetSelectedInventory()
-    return InvTweaks.GetSelectedItem() and InvTweaks.GetSelectedItem().OwnInventory
+    if InvTweaks.GetSelectedItem() then
+        return InvTweaks.GetSelectedItem().OwnInventory
+    elseif InvTweaks.GetSelectedCharacter() then
+        return InvTweaks.GetSelectedCharacter().Inventory
+    end
 end
 
 ---@return Barotrauma.Inventory returns item currently being interacted with by client character or nil.
 function InvTweaks.GetSelectedItem()
     return InvTweaks.OwnCharacter and InvTweaks.OwnCharacter.SelectedItem
+end
+
+function InvTweaks.GetSelectedCharacter()
+    return InvTweaks.OwnCharacter and InvTweaks.OwnCharacter.SelectedCharacter
 end
 
 ---@return bool returns true if shift,ctrl or alt key/s are held
