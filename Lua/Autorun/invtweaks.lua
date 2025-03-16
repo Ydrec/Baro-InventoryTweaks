@@ -1,29 +1,68 @@
 InvTweaks = InvTweaks or {}
 
+InvTweaks.IsDragging = false
+InvTweaks.WasDragging = false
+
+InvTweaks.Source = {
+    Items = nil,
+    Slot = nil,
+    Inventory = nil,
+}
+
+Inventory = LuaUserData.CreateStatic('Barotrauma.Inventory')
+
 -- OwnInventory = function() return Character.Controlled and Character.Controlled.Inventory end
 -- OwnCharacter = function() return Character.Controlled end
  
 
-Hook.Add("keyUpdate", "test", function(dtime)
+Hook.Add("keyUpdate", "InvTweaks_keyUpdate", function(dtime)
     --print(PlayerInput.PrimaryMouseButtonClicked)
     --PlayerInput.primaryDoubleClicked = false
     --doubleClickedItems.Clear()
-    if PlayerInput.PrimaryMouseButtonClicked() then
-        Hook.Call("PrimaryMouseButtonClicked", {"some", "arguments", 123})
+    if PlayerInput.PrimaryMouseButtonDown() then
+        InvTweaks.SaveSource()
+        --InvTweaks.UpdateDragging()
+        --print(Inventory.DraggingSlot.MouseOn())
+        --Hook.Call("InvTweaks.Hooks.PrimaryPressed", {"some", "arguments", 123})
+        return
     end
+
+    if PlayerInput.PrimaryMouseButtonClicked() then
+        Hook.Call("InvTweaks.Hooks.PrimaryReleased", {"some", "arguments", 123})
+        return
+    end
+
+    if PlayerInput.KeyHit(Keys.J) then
+        Hook.Call("InvTweaks.Hooks.Debug")
+    end
+
+    
     return
 end)
 
+Inventory = LuaUserData.CreateStatic('Barotrauma.Inventory')
 
-Hook.Add("PrimaryMouseButtonClicked", "test2", function(dtime)
+Hook.Add("InvTweaks.Hooks.Debug", "InvTweaks_Debug", function(dtime)
+    --Game.GameSession.CrewManager.AddSinglePlayerChatMessage("", Inventory.DraggingSlot and tostring(Inventory.DraggingSlot.State) or "Nil", ChatMessageType.Private, Character.Controlled)
+    Game.GameSession.CrewManager.AddSinglePlayerChatMessage("", InvTweaks.IsDragging(), ChatMessageType.Private, Character.Controlled) 
+
+
+end)
+
+Hook.Add("InvTweaks.Hooks.PrimaryReleased", "InvTweaks_PrimaryLogic", function(dtime)
     InvTweaks.UpdateOwner()
 
     --print(InvTweaks.GetHoveredItems())
 
-    if not InvTweaks.GetHoveredSlot() then return end
+    if not InvTweaks.GetHoveredSlot() or InvTweaks.IsDragging() then return end
+    
+    -- if Inventory.DraggingItems ~= nil and Inventory.DraggingItems[1] ~= nil then
+    -- if Inventory.DraggingSlot == nil or (not Inventory.DraggingSlot.MouseOn())
+
+
     local HoveredInventory = InvTweaks.GetHoveredInventory()
     local HoveredItems = InvTweaks.GetHoveredItems()
-    print(InvTweaks.IsInventoryClientOwned(HoveredInventory))
+    --print(InvTweaks.IsInventoryClientOwned(HoveredInventory))
     local targetInventory = InvTweaks.IsInventoryClientOwned(HoveredInventory) and InvTweaks.GetSelectedInventory() or InvTweaks.OwnInventory
     --print(InvTweaks.GetSelectedInventory())
 
@@ -32,7 +71,10 @@ Hook.Add("PrimaryMouseButtonClicked", "test2", function(dtime)
     elseif PlayerInput.KeyDown(InputType.TakeOneFromInventorySlot) then
         InvTweaks.TryPutItem(HoveredItems[1], targetInventory)
     end
+    --print("AAAAAAAAAA")
 
+    --Game.GameSession.CrewManager.AddSinglePlayerChatMessage("", Inventory.DraggingSlot and tostring(Inventory.DraggingSlot.State) or "Nil", ChatMessageType.Private, Character.Controlled) 
+    InvTweaks.ClearSource()
 end)
 
 
@@ -107,6 +149,29 @@ function InvTweaks.UpdateOwner()
     InvTweaks.OwnInventory = Character.Controlled and Character.Controlled.Inventory
 end
 
+
+
+---@return bool returns true if source item is currently being dragged
+function InvTweaks.IsDragging()
+    --return Inventory.DraggingSlot ~= nil and (not Inventory.DraggingSlot.MouseOn())
+    --mouse not over the source slot
+    return InvTweaks.Source.Slot ~= nil and (not InvTweaks.Source.Slot.Slot.MouseOn())
+end
+
+---Sets InvTweaks.Source values to currently hovered slot/items/inventory
+function InvTweaks.SaveSource()
+    InvTweaks.Source.Items = InvTweaks.GetHoveredItems()
+    InvTweaks.Source.Slot = InvTweaks.GetHoveredSlot()
+    InvTweaks.Source.Inventory = InvTweaks.GetHoveredInventory()
+end
+
+---Clears InvTweaks.Source
+function InvTweaks.ClearSource()
+    InvTweaks.Source.Items = nil
+    InvTweaks.Source.Slot = nil
+    InvTweaks.Source.Inventory = nil
+end
+
 ---@return Barotrauma.Inventory.SlotReference returns slot which is currently being hovered over by client mouse or nil.
 function InvTweaks.GetHoveredSlot()
     return Inventory.SelectedSlot
@@ -149,14 +214,16 @@ function InvTweaks.IsClientOwned(object)
 
 end
 
+
+
 ---@param Barotrauma.inventory inventory
 ---@return bool returns true if inventory is contained inside of client character inventory.
 function InvTweaks.IsInventoryClientOwned(inventory)
     return inventory == InvTweaks.OwnInventory or LuaUserData.IsTargetType(inventory.Owner, "Barotrauma.Item") and (inventory.Owner.GetRootInventoryOwner() == InvTweaks.OwnCharacter)
 end
 
---TODO: countInaccessibleSlots
----@return Barotrauma.Inventory returns item currently being interacted with by client character or nil.
+--TODO: should countInaccessibleSlots ?
+---@return bool
 function InvTweaks.IsContainer(item, countInaccessibleSlots)
     countInaccessibleSlots = countInaccessibleSlots or false
     return item.OwnInventory ~= nil
